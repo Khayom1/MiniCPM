@@ -11,3 +11,12 @@ venv
 # 雷达图数据源 + 渲染脚本 (产物 PNG 进 assets/, 不同步源)
 榜单.csv
 scripts/
+
+# Tajik corpus exports, local training runs and model artifacts
+tajik-data/
+tajik/raw/
+tajik/processed/
+tajik/runs/
+tajik/adapters/
+*.gguf
+*.litertlm
