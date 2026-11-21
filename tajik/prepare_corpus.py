@@ -109,6 +109,8 @@ def prepare(
     test_percent: int = 5,
     seed: str = "tajik-v1",
     overwrite: bool = False,
+    lid_model_path: Path | None = None,
+    lid_threshold: float = 0.70,
 ) -> dict[str, Any]:
     if not inputs:
         raise ValueError("At least one --inputs file is required")
@@ -116,6 +118,16 @@ def prepare(
         raise ValueError("validation/test percentages must be nonnegative and sum to less than 100")
     if not 0 <= min_cyrillic_ratio <= 1 or not 0 <= max_arabic_ratio <= 1 or not 0 <= max_latin_ratio <= 1:
         raise ValueError("script ratio thresholds must be between 0 and 1")
+    if min_alpha_chars < 1 or not 0 <= lid_threshold <= 1:
+        raise ValueError("min_alpha_chars must be positive and lid_threshold must be between 0 and 1")
+
+    lid_model = None
+    if lid_model_path is not None:
+        try:
+            import fasttext
+        except ImportError as exc:
+            raise ValueError("Install optional dependency with: pip install fasttext-wheel") from exc
+        lid_model = fasttext.load_model(str(lid_model_path))
 
     output_dir.mkdir(parents=True, exist_ok=True)
     outputs = [output_dir / f"{name}.jsonl" for name in ("train", "validation", "test")]
@@ -128,6 +140,8 @@ def prepare(
     rejected: Counter[str] = Counter()
     aggregates: Counter[str] = Counter()
     source_counts: Counter[str] = Counter()
+    lid_confidence_sum = 0.0
+    lid_checked = 0
     for input_path in inputs:
         for row in iter_jsonl(input_path):
             aggregates["records_seen"] += 1
@@ -156,6 +170,15 @@ def prepare(
             if stats["latin_ratio"] > max_latin_ratio:
                 rejected["high_latin_ratio"] += 1
                 continue
+            if lid_model is not None:
+                labels, probabilities = lid_model.predict(text.replace("\\n", " ")[:10000], k=2)
+                predicted = labels[0].replace("__label__", "") if labels else ""
+                confidence = float(probabilities[0]) if len(probabilities) else 0.0
+                lid_checked += 1
+                lid_confidence_sum += confidence
+                if predicted != "tg" or confidence < lid_threshold:
+                    rejected["language_id_not_tajik_or_low_confidence"] += 1
+                    continue
 
             digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
             if digest in seen:
@@ -191,6 +214,8 @@ def prepare(
             "text_fields": list(text_fields),
             "language_fields": list(lang_fields),
             "assume_language": assume_language,
+            "lid_model_path": str(lid_model_path) if lid_model_path else None,
+            "lid_threshold": lid_threshold,
             "min_alpha_chars": min_alpha_chars,
             "min_cyrillic_ratio": min_cyrillic_ratio,
             "max_arabic_ratio": max_arabic_ratio,
@@ -213,10 +238,16 @@ def prepare(
             "tajik_marker_letters": aggregates["tajik_marker_letters"]
         },
         "source_counts": dict(source_counts),
+        "language_identification": {
+            "model": str(lid_model_path) if lid_model_path else None,
+            "documents_checked": lid_checked,
+            "mean_top1_confidence": lid_confidence_sum / lid_checked if lid_checked else None
+        },
         "limitations": [
             "Script ratios do not distinguish Tajik from Russian or other Cyrillic languages.",
             "Exact duplicate removal does not catch near-duplicates.",
-            "Dataset-level language assertions require manual source sampling."
+            "Dataset-level language assertions require manual source sampling.",
+            "Optional fastText language identification is a screening signal, not a proof of language quality."
         ]
     }
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -237,6 +268,8 @@ def main() -> int:
     parser.add_argument("--validation-percent", type=int, default=5)
     parser.add_argument("--test-percent", type=int, default=5)
     parser.add_argument("--seed", default="tajik-v1")
+    parser.add_argument("--lid-model", type=Path, help="Optional fastText lid.176.ftz model file")
+    parser.add_argument("--lid-threshold", type=float, default=0.70)
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
@@ -255,6 +288,8 @@ def main() -> int:
             test_percent=args.test_percent,
             seed=args.seed,
             overwrite=args.overwrite,
+            lid_model_path=args.lid_model,
+            lid_threshold=args.lid_threshold,
         )
     except (OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
