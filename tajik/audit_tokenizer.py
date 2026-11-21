@@ -5,21 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import unicodedata
 from pathlib import Path
-
-
-def iter_texts(path: Path, limit: int):
-    with path.open("r", encoding="utf-8") as stream:
-        for line in stream:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            text = row.get("text") if isinstance(row, dict) else None
-            if isinstance(text, str) and text.strip():
-                yield text
-                if limit and sum(1 for _ in ()):  # no-op; count is maintained by caller
-                    break
 
 
 def main() -> int:
@@ -28,6 +14,8 @@ def main() -> int:
     parser.add_argument("--input", type=Path, help="Prepared JSONL with a text field")
     parser.add_argument("--max-samples", type=int, default=1000)
     args = parser.parse_args()
+    if args.max_samples < 1:
+        parser.error("--max-samples must be at least 1")
 
     try:
         from transformers import AutoTokenizer
@@ -40,7 +28,7 @@ def main() -> int:
         if args.input:
             samples = []
             with args.input.open("r", encoding="utf-8") as stream:
-                for line in stream:
+                for line_no, line in enumerate(stream, 1):
                     if not line.strip():
                         continue
                     row = json.loads(line)
