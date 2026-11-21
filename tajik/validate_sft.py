@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate MiniCPM5 ShareGPT/messages JSONL for Tajik SFT."""
+"""Validate MiniCPM5 ShareGPT/messages JSONL for Tajik LoRA SFT."""
 from __future__ import annotations
 
 import argparse
@@ -14,8 +14,8 @@ def cyrillic_ratio(text: str) -> float:
     letters = [ch for ch in text if ch.isalpha()]
     if not letters:
         return 0.0
-    cyr = sum("CYRILLIC" in unicodedata.name(ch, "") for ch in letters)
-    return cyr / len(letters)
+    cyrillic = sum("CYRILLIC" in unicodedata.name(ch, "") for ch in letters)
+    return cyrillic / len(letters)
 
 
 def validate_file(path: Path, min_assistant_cyrillic: float) -> dict:
@@ -39,7 +39,7 @@ def validate_file(path: Path, min_assistant_cyrillic: float) -> dict:
                 if not isinstance(message, dict):
                     raise ValueError(f"{path}:{line_no}: each message must be an object")
                 role, content = message.get("role"), message.get("content")
-                if role not in {"system", "user", "assistant"}:
+                if not isinstance(role, str) or role not in {"system", "user", "assistant"}:
                     raise ValueError(f"{path}:{line_no}: unsupported/missing role {role!r}")
                 if not isinstance(content, str) or not content.strip():
                     raise ValueError(f"{path}:{line_no}: {role} content must be a non-empty string")
@@ -73,16 +73,29 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--inputs", nargs="+", required=True, type=Path)
     parser.add_argument("--min-assistant-cyrillic", type=float, default=0.55)
+    parser.add_argument("--max-duplicates", type=int, default=0)
+    parser.add_argument("--max-low-cyrillic-answers", type=int, default=0)
     args = parser.parse_args()
     if not 0 <= args.min_assistant_cyrillic <= 1:
         parser.error("--min-assistant-cyrillic must be between 0 and 1")
+    if args.max_duplicates < 0 or args.max_low_cyrillic_answers < 0:
+        parser.error("maximum failure counts cannot be negative")
 
     try:
         report = {str(path): validate_file(path, args.min_assistant_cyrillic) for path in args.inputs}
     except (OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
+
     print(json.dumps(report, ensure_ascii=False, indent=2))
+    failures = sum(
+        stats.get("duplicate_examples", 0) > args.max_duplicates
+        or stats.get("low_cyrillic_assistant_answers", 0) > args.max_low_cyrillic_answers
+        for stats in report.values()
+    )
+    if failures:
+        print("QUALITY GATE FAILED: duplicate or low-Cyrillic answer threshold exceeded.", file=sys.stderr)
+        return 1
     return 0
 
 
