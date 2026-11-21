@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "target_language": "tg",
+  "primary_script": "Cyrillic",
+  "sources": [
+    {
+      "id": "TajikNLPWorld/tajik-web-corpus",
+      "role": "candidate_raw_text_corpus",
+      "reported_size": {
+        "documents": 319298,
+        "words": 168500000,
+        "characters": 1110000000
+      },
+      "language_note": "Tajik with some Persian content; row-level language identification and manual sampling are required.",
+      "license_status": "other_restricted_underlying_text_rights",
+      "training_gate": "Do not ingest or redistribute until original source rights and intended use are verified. The dataset card distinguishes the compilation/metadata license from rights in original texts.",
+      "source_url": "https://huggingface.co/datasets/TajikNLPWorld/tajik-web-corpus"
+    },
+    {
+      "id": "TajikNLPWorld/TajPersParallelCorpusFull",
+      "role": "parallel_lexical_translation_and_tokenizer_evaluation",
+      "reported_size": {
+        "unique_parallel_pairs": 456307
+      },
+      "language_note": "Tajik Cyrillic paired with Persian in Arabic script; use the Tajik field only for Tajik-side tasks and retain pair alignment for translation evaluation.",
+      "license_status": "apache-2.0",
+      "training_gate": "Review source/category balance; this is not a general conversational corpus.",
+      "source_url": "https://huggingface.co/datasets/TajikNLPWorld/TajPersParallelCorpusFull"
+    },
+    {
+      "id": "TajikNLPWorld/TajikUnifiedCorpus",
+      "role": "morphology_lexicon_and_linguistic_evaluation",
+      "reported_size": {
+        "wordform_records": 200144
+      },
+      "language_note": "Wordforms, lemmas, grammatical tags, part of speech, features and translations.",
+      "license_status": "apache-2.0",
+      "training_gate": "The Hub currently requires an access/consent step; review and accept the terms before downloading.",
+      "source_url": "https://huggingface.co/datasets/TajikNLPWorld/TajikUnifiedCorpus"
+    }
+  ]
+}
