@@ -1,0 +1,2 @@
+# Optional language identification gate for prepare_corpus.py
+fasttext-wheel>=0.9.2
