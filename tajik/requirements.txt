@@ -1,0 +1,2 @@
+# Optional dependency for tokenizer auditing only. Corpus preparation and tests use Python stdlib.
+transformers>=4.55.0
