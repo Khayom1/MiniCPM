@@ -39,16 +39,27 @@ All scripts use UTF-8 and the Python standard library except the optional Huggin
 
 Export source records as JSONL. Each record must contain one text field (`text`, `tajik`, `content`, `body`, or `document`) and, when available, a language tag (`lang` or `language`).
 
+For stronger filtering, install the optional fastText dependency and download the compressed LID-176 model (917 KB):
+
+```bash
+pip install fasttext-wheel
+curl -L -o lid.176.ftz https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.ftz
+```
+
+LID-176 supports the ISO language label `tg`. It was trained on Wikipedia, Tatoeba and SETimes data and is licensed CC-BY-SA. Keep its license notice. It is a screening signal, not a language-quality guarantee.
+
 For a source whose dataset-level card declares Tajik but whose rows have no language field, the caller must explicitly opt in:
 
 ```bash
 python tajik/prepare_corpus.py \
   --inputs /path/to/source.jsonl \
   --output-dir /path/to/prepared-tajik \
-  --assume-language tg
+  --assume-language tg \
+  --lid-model ./lid.176.ftz \
+  --lid-threshold 0.70
 ```
 
-This option is an explicit assertion, not a language detector. A script-ratio filter rejects obvious script contamination, but it cannot distinguish Tajik from Russian merely because both use Cyrillic. Review samples from every source and run a real language-ID audit before accepting a corpus.
+This option is an explicit assertion about the dataset, not a language detector. The optional LID model rejects texts whose top prediction is not `tg` or whose confidence is below the configured threshold. Script-ratio checks also reject obvious script contamination. Neither method guarantees Tajik: manually review samples from every source and inspect borderline cases before accepting a corpus.
 
 Output:
 - `train.jsonl`, `validation.jsonl`, `test.jsonl`: deterministic document-level splits with `text`, `source`, and `doc_id`.
