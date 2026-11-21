@@ -171,7 +171,7 @@ def prepare(
                 rejected["high_latin_ratio"] += 1
                 continue
             if lid_model is not None:
-                labels, probabilities = lid_model.predict(text.replace("\\n", " ")[:10000], k=2)
+                labels, probabilities = lid_model.predict(text.replace("\n", " ")[:10000], k=2)
                 predicted = labels[0].replace("__label__", "") if labels else ""
                 confidence = float(probabilities[0]) if len(probabilities) else 0.0
                 lid_checked += 1
